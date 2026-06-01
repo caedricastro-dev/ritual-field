@@ -819,10 +819,9 @@ function buildDash(){
 }
 
 function loadWeeksFromSheet(){
-  fetch(SCRIPT_URL+'?action=weeks')
-    .then(function(r){return r.json();})
+  jsonpPromise(SCRIPT_URL+'?action=weeks')
     .then(function(res){
-      var sheetWeeks=res.weeks||[];
+      var sheetWeeks=(res&&res.weeks)||[];
       var all={};
       all[WEEK]=true;
       lsWeeks().forEach(function(w){all[w]=true;});
@@ -867,36 +866,32 @@ function handleWeekChange(week){
 
 // Fetch helper - uses fetch API with Apps Script
 function jsonpPromise(url) {
-  // Try fetch first (works when Apps Script has CORS headers)
-  return fetch(url)
-    .then(function(r) { return r.json(); })
-    .catch(function() {
-      // Fallback to JSONP
-      return new Promise(function(resolve) {
-        var cbName = '_cb_' + Math.random().toString(36).slice(2);
-        var done = false;
-        var timer = setTimeout(function() {
-          if (!done) { done = true; resolve(null); }
-          try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
-        }, 10000);
-        window[cbName] = function(data) {
-          if (!done) {
-            done = true;
-            clearTimeout(timer);
-            try { delete window[cbName]; } catch(e) {}
-            try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
-            resolve(data);
-          }
-        };
-        var s = document.createElement('script');
-        s.id = cbName;
-        s.src = url + '&callback=' + cbName;
-        s.onerror = function() {
-          if (!done) { done = true; clearTimeout(timer); resolve(null); }
-        };
-        document.head.appendChild(s);
-      });
-    });
+  return new Promise(function(resolve) {
+    var cbName = '_cb_' + Math.random().toString(36).slice(2);
+    var done = false;
+    var timer = setTimeout(function() {
+      if (!done) { done = true; resolve(null); }
+      try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
+      try { delete window[cbName]; } catch(e) {}
+    }, 10000);
+    window[cbName] = function(data) {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        try { delete window[cbName]; } catch(e) {}
+        try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
+        resolve(data);
+      }
+    };
+    var s = document.createElement('script');
+    s.id = cbName;
+    s.src = url + '&callback=' + cbName;
+    s.onerror = function() {
+      if (!done) { done = true; clearTimeout(timer); resolve(null); }
+      try { var s2=document.getElementById(cbName); if(s2) s2.remove(); } catch(e) {}
+    };
+    document.head.appendChild(s);
+  });
 }
 
 function renderDash(week){
