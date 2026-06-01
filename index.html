@@ -807,18 +807,45 @@ function updateSentNotice(roleId){
 
 function buildDash(){
   var el=document.getElementById('tab-dashboard');
-  var weeks=lsWeeks();
-  var opts=weeks.map(function(w){return'<option value="'+w+'"'+(w===WEEK?' selected':'')+'>'+fmtWeek(w)+'</option>';}).join('');
   el.innerHTML=
     '<div class="dash-filter">'+
       '<label>Semana:</label>'+
-      '<select id="dash-week" onchange="handleWeekChange(this.value)">'+opts+'</select>'+
-      '<button class="present-btn-dash" id="present-btn" onclick="togglePresent()">\u{1F4FD}\uFE0F Apresentar</button>'+
+      '<select id="dash-week" onchange="handleWeekChange(this.value)"><option value="'+WEEK+'">'+fmtWeek(WEEK)+'</option></select>'+
+      '<button class="present-btn-dash" id="present-btn" onclick="togglePresent()">Apresentar</button>'+
     '</div>'+
     '<div class="dash-main" id="dash-body"></div>'+
     '<div id="dash-present"></div>';
-  renderDash(WEEK);
+  loadWeeksFromSheet();
 }
+
+function loadWeeksFromSheet(){
+  fetch(SCRIPT_URL+'?action=weeks')
+    .then(function(r){return r.json();})
+    .then(function(res){
+      var sheetWeeks=res.weeks||[];
+      var all={};
+      all[WEEK]=true;
+      lsWeeks().forEach(function(w){all[w]=true;});
+      sheetWeeks.forEach(function(w){all[w]=true;});
+      var merged=Object.keys(all).sort().reverse();
+      updateWeekSelector(merged);
+      renderDash(WEEK);
+    })
+    .catch(function(){
+      updateWeekSelector(lsWeeks());
+      renderDash(WEEK);
+    });
+}
+
+function updateWeekSelector(weeks){
+  var sel=document.getElementById('dash-week');
+  if(!sel) return;
+  var current=sel.value||WEEK;
+  sel.innerHTML=weeks.map(function(w){
+    return'<option value="'+w+'"'+(w===current?' selected':'')+'>'+fmtWeek(w)+'</option>';
+  }).join('');
+}
+
 
 function togglePresent(){
   presentMode=!presentMode;
