@@ -838,33 +838,38 @@ function handleWeekChange(week){
   if(presentMode) renderPresentMode(week);
 }
 
-// JSONP helper - bypasses CORS for GET requests to Apps Script
-function jsonpFetch(url, cb) {
-  var cbName = '_cb_' + Math.random().toString(36).slice(2);
-  var done = false;
-  window[cbName] = function(data) {
-    done = true;
-    try { delete window[cbName]; } catch(e) {}
-    cb(null, data);
-  };
-  var s = document.createElement('script');
-  s.src = url + '&callback=' + cbName;
-  s.onerror = function() {
-    if (!done) { done = true; cb(new Error('failed'), null); }
-    try { document.head.removeChild(s); } catch(e) {}
-  };
-  setTimeout(function() {
-    if (!done) { done = true; cb(new Error('timeout'), null); try { document.head.removeChild(s); } catch(e) {} }
-  }, 8000);
-  document.head.appendChild(s);
-}
-
+// Fetch helper - uses fetch API with Apps Script
 function jsonpPromise(url) {
-  return new Promise(function(resolve) {
-    jsonpFetch(url, function(err, data) {
-      resolve(err ? null : data);
+  // Try fetch first (works when Apps Script has CORS headers)
+  return fetch(url)
+    .then(function(r) { return r.json(); })
+    .catch(function() {
+      // Fallback to JSONP
+      return new Promise(function(resolve) {
+        var cbName = '_cb_' + Math.random().toString(36).slice(2);
+        var done = false;
+        var timer = setTimeout(function() {
+          if (!done) { done = true; resolve(null); }
+          try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
+        }, 10000);
+        window[cbName] = function(data) {
+          if (!done) {
+            done = true;
+            clearTimeout(timer);
+            try { delete window[cbName]; } catch(e) {}
+            try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
+            resolve(data);
+          }
+        };
+        var s = document.createElement('script');
+        s.id = cbName;
+        s.src = url + '&callback=' + cbName;
+        s.onerror = function() {
+          if (!done) { done = true; clearTimeout(timer); resolve(null); }
+        };
+        document.head.appendChild(s);
+      });
     });
-  });
 }
 
 function renderDash(week){
