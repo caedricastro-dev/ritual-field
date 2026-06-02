@@ -831,27 +831,37 @@ function buildDash(){
 }
 
 function loadWeeksFromSheet(){
+  loadDashboard(WEEK);
+}
+
+function loadDashboard(week){
   var dp=document.getElementById('dash-present');
   if(dp) dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando...</div>';
-  var week=document.getElementById('dash-week')?document.getElementById('dash-week').value:WEEK;
 
-  // UMA chamada so retorna tudo: semanas + closer + cs + vip
   jsonpPromise(SCRIPT_URL+'?action=dashboard&week='+week)
   .then(function(res){
     if(!res||res.status==='error'){throw new Error('failed');}
+    // Update week selector with all available weeks
     var sheetWeeks=res.weeks||[];
     var all={};all[WEEK]=true;
     lsWeeks().forEach(function(w){all[w]=true;});
     sheetWeeks.forEach(function(w){all[w]=true;});
-    updateWeekSelector(Object.keys(all).sort().reverse());
-    var cl  = res.closer  || lsLoad('closer',week);
-    var cs  = res.cs      || lsLoad('cs',week);
-    var vip = res.vip     || lsLoad('vip',week);
+    var merged=Object.keys(all).sort().reverse();
+    updateWeekSelector(merged);
+    // Set selector to the week we actually loaded
+    var sel=document.getElementById('dash-week');
+    if(sel) sel.value=week;
+    // Render
+    var cl  = res.closer || lsLoad('closer',week);
+    var cs  = res.cs     || lsLoad('cs',week);
+    var vip = res.vip    || lsLoad('vip',week);
     renderPresentContent(week,cl,cs,vip);
   })
   .catch(function(){
     var weeks=lsWeeks();
     updateWeekSelector(weeks.length?weeks:[WEEK]);
+    var sel=document.getElementById('dash-week');
+    if(sel) sel.value=week;
     renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week));
   });
 }
@@ -869,7 +879,7 @@ function updateWeekSelector(weeks){
 
 function togglePresent(){}
 function handleWeekChange(week){
-  loadWeeksFromSheet();
+  loadDashboard(week);
 }
 
 // Fetch helper - uses fetch API with Apps Script
