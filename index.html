@@ -984,6 +984,60 @@ function renderDash(week){
 }
 
 
+function hasDataFn(d){
+if(!d) return false;
+if(d._enviado&&String(d._enviado).trim()) return true;
+var keys=['reunioes_total','total_acoes','vistorias','consumiram'];
+for(var i=0;i<keys.length;i++){if(d[keys[i]]&&String(d[keys[i]]).trim()&&String(d[keys[i]])!=='0') return true;}
+return false;
+  }
+function semaforo(d,role){
+if(!hasDataFn(d)){
+  var cls2=!d?'s-red':'s-yellow';
+  var txt2=!d?'N\u00e3o preenchido':'Rascunho salvo';
+  return'<div class="semaforo-row"><span class="semaforo-dot '+cls2+'"></span>'+txt2+'</div>';
+}
+if(role==='closer'){
+  var ns=parseInt(d.noshows)||0,r=parseInt(d.reunioes_total)||0;
+  if(ns>=2) return'<div class="semaforo-row"><span class="semaforo-dot s-yellow"></span>'+ns+' no-shows essa semana</div>';
+  return'<div class="semaforo-row"><span class="semaforo-dot s-green"></span>'+r+' reuni\u00f5es realizadas</div>';
+}
+if(role==='cs'){
+  var ch=parseInt(d.churn)||0;
+  if(ch>=2) return'<div class="semaforo-row"><span class="semaforo-dot s-yellow"></span>'+ch+' clientes em risco</div>';
+  return'<div class="semaforo-row"><span class="semaforo-dot s-green"></span>'+n(d,'total_acoes')+' a\u00e7\u00f5es realizadas</div>';
+}
+if(role==='vip'){
+  var dr=parseInt(d.dem_rec)||0,dc=parseInt(d.dem_con)||0;
+  var pct=dr>0?Math.round(dc/dr*100):100;
+  var cls3=pct>=90?'s-green':pct>=70?'s-yellow':'s-red';
+  return'<div class="semaforo-row"><span class="semaforo-dot '+cls3+'"></span>'+pct+'% das demandas conclu\u00eddas</div>';
+}
+return'';
+  }
+function conversionBadge(d){
+if(!d) return'';
+var r=parseInt(d.reunioes_total)||0,c=parseInt(d.consumiram)||0;
+if(r===0) return'';
+var pct=Math.round(c/r*100);
+var color=pct>=50?'#63A33B':pct>=25?'#4A90D9':'#EF9A9A';
+return'<div style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:'+color+';background:rgba(0,0,0,.06);border-radius:20px;padding:3px 10px;margin-top:6px">'+
+  '<span style="font-weight:700;font-size:13px">'+pct+'%</span> de convers\u00e3o</div>';
+  }
+function alertBadge(d,role){
+if(!d) return'';
+if(role==='cs'){
+  var ch=parseInt(d.churn)||0;
+  if(ch>0) return'<div style="position:absolute;top:14px;right:14px;background:#FFC107;color:#152035;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px">'+ch+' em risco</div>';
+}
+if(role==='vip'){
+  var dr=parseInt(d.dem_rec)||0,dc=parseInt(d.dem_con)||0;
+  var pend=dr-dc;
+  if(pend>0) return'<div style="position:absolute;top:14px;right:14px;background:#F44336;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px">'+pend+' pendente'+(pend>1?'s':'')+'</div>';
+}
+return'';
+  }
+
 function renderDashContent(week,cl,cs,vip,mon){
   var body=document.getElementById('dash-body');
   var month=getMonthKey(week);
@@ -993,13 +1047,7 @@ function renderDashContent(week,cl,cs,vip,mon){
   function vraw(d,k){return d&&d[k]&&String(d[k]).trim()?d[k]:null;}
   function n(d,k){return(d&&d[k]!==''&&d[k]!==undefined&&d[k]!==null)?d[k]:'\u2014';}
   function mn(t,k){return(t&&t[k]!==undefined)?Math.round(t[k]*10)/10:'\u2014';}
-  function hasDataFn(d){
-    if(!d) return false;
-    if(d._enviado&&String(d._enviado).trim()) return true;
-    var keys=['reunioes_total','total_acoes','vistorias','consumiram'];
-    for(var i=0;i<keys.length;i++){if(d[keys[i]]&&String(d[keys[i]]).trim()&&String(d[keys[i]])!=='0') return true;}
-    return false;
-  }
+  // hasDataFn defined globally
   function pill(d){
     if(!hasDataFn(d)) return'<span class="pill pill-pend">Pendente</span>';
     var sent=d._enviado;
@@ -1033,56 +1081,13 @@ function renderDashContent(week,cl,cs,vip,mon){
   }
 
   // Semáforo
-  function semaforo(d,role){
-    if(!hasDataFn(d)){
-      var cls2=!d?'s-red':'s-yellow';
-      var txt2=!d?'N\u00e3o preenchido':'Rascunho salvo';
-      return'<div class="semaforo-row"><span class="semaforo-dot '+cls2+'"></span>'+txt2+'</div>';
-    }
-    if(role==='closer'){
-      var ns=parseInt(d.noshows)||0,r=parseInt(d.reunioes_total)||0;
-      if(ns>=2) return'<div class="semaforo-row"><span class="semaforo-dot s-yellow"></span>'+ns+' no-shows essa semana</div>';
-      return'<div class="semaforo-row"><span class="semaforo-dot s-green"></span>'+r+' reuni\u00f5es realizadas</div>';
-    }
-    if(role==='cs'){
-      var ch=parseInt(d.churn)||0;
-      if(ch>=2) return'<div class="semaforo-row"><span class="semaforo-dot s-yellow"></span>'+ch+' clientes em risco</div>';
-      return'<div class="semaforo-row"><span class="semaforo-dot s-green"></span>'+n(d,'total_acoes')+' a\u00e7\u00f5es realizadas</div>';
-    }
-    if(role==='vip'){
-      var dr=parseInt(d.dem_rec)||0,dc=parseInt(d.dem_con)||0;
-      var pct=dr>0?Math.round(dc/dr*100):100;
-      var cls3=pct>=90?'s-green':pct>=70?'s-yellow':'s-red';
-      return'<div class="semaforo-row"><span class="semaforo-dot '+cls3+'"></span>'+pct+'% das demandas conclu\u00eddas</div>';
-    }
-    return'';
-  }
+  // semaforo defined globally
 
   // #1 Conversão Closer
-  function conversionBadge(d){
-    if(!d) return'';
-    var r=parseInt(d.reunioes_total)||0,c=parseInt(d.consumiram)||0;
-    if(r===0) return'';
-    var pct=Math.round(c/r*100);
-    var color=pct>=50?'#63A33B':pct>=25?'#4A90D9':'#EF9A9A';
-    return'<div style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:'+color+';background:rgba(0,0,0,.06);border-radius:20px;padding:3px 10px;margin-top:6px">'+
-      '<span style="font-weight:700;font-size:13px">'+pct+'%</span> de convers\u00e3o</div>';
-  }
+  // conversionBadge defined globally
 
   // #2 Alert badge on card
-  function alertBadge(d,role){
-    if(!d) return'';
-    if(role==='cs'){
-      var ch=parseInt(d.churn)||0;
-      if(ch>0) return'<div style="position:absolute;top:14px;right:14px;background:#FFC107;color:#152035;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px">'+ch+' em risco</div>';
-    }
-    if(role==='vip'){
-      var dr=parseInt(d.dem_rec)||0,dc=parseInt(d.dem_con)||0;
-      var pend=dr-dc;
-      if(pend>0) return'<div style="position:absolute;top:14px;right:14px;background:#F44336;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px">'+pend+' pendente'+(pend>1?'s':'')+'</div>';
-    }
-    return'';
-  }
+  // alertBadge defined globally
 
   // Role cards
   function roleCard(role,cls,d,kpis){
