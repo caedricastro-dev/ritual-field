@@ -304,6 +304,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .ptl-badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
 .pconsolidate{padding:1.25rem 2.5rem 2rem}
 .pdivider{border:none;border-top:2px solid rgba(0,0,0,.06);margin:0}
+.p-pending-banner{background:rgba(180,120,0,.08);border:1px solid rgba(180,120,0,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:#7a4a00;display:flex;align-items:center;gap:8px;margin-bottom:12px}
 
 .footer{text-align:center;padding:1.5rem 0 .5rem;font-size:11px;color:rgba(0,0,0,.3)}
 select option{background:#fff;color:rgba(0,0,0,.85)}
@@ -411,7 +412,7 @@ function updateDots(){
     if(!dot) return;
     var d=lsLoad(role);
     if(!d){dot.className='nav-dot red';return;}
-    if(d._enviado){dot.className='nav-dot green';return;}
+    if(d._enviado&&String(d._enviado).trim()){dot.className='nav-dot green';return;}
     dot.className='nav-dot yellow';
   });
 }
@@ -847,10 +848,7 @@ function loadDashboard(week){
     lsWeeks().forEach(function(w){all[w]=true;});
     sheetWeeks.forEach(function(w){all[w]=true;});
     var merged=Object.keys(all).sort().reverse();
-    updateWeekSelector(merged);
-    // Set selector to the week we actually loaded
-    var sel=document.getElementById('dash-week');
-    if(sel) sel.value=week;
+    updateWeekSelector(merged, week);
     // Render
     var cl  = res.closer || lsLoad('closer',week);
     var cs  = res.cs     || lsLoad('cs',week);
@@ -859,18 +857,18 @@ function loadDashboard(week){
   })
   .catch(function(){
     var weeks=lsWeeks();
-    updateWeekSelector(weeks.length?weeks:[WEEK]);
-    var sel=document.getElementById('dash-week');
-    if(sel) sel.value=week;
+    updateWeekSelector(weeks.length?weeks:[WEEK], week);
     renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week));
   });
 }
 
-function updateWeekSelector(weeks){
+function updateWeekSelector(weeks,selected){
   window._sheetWeeks=weeks;
   var sel=document.getElementById('dash-week');
   if(!sel) return;
-  var current=sel.value||WEEK;
+  var current=selected||sel.value||WEEK;
+  // Make sure current week is always in the list
+  if(weeks.indexOf(current)<0) weeks=([current].concat(weeks));
   sel.innerHTML=weeks.map(function(w){
     return'<option value="'+w+'"'+(w===current?' selected':'')+'>'+fmtWeek(w)+'</option>';
   }).join('');
