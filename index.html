@@ -469,12 +469,17 @@ function selectProfile(role){
   document.getElementById('profile-screen').style.display='none';
   document.getElementById('main-app').style.display='block';
   var chip=document.getElementById('profile-chip');
-  var labels={closer:'Closer',cs:'CS',vip:'VIP',leader:'L\u00edder'};
-  chip.textContent=labels[role]+' \u2022 trocar';
+  var labels={closer:'Closer',cs:'CS',vip:'VIP',lider:'L\u00edder',leader:'L\u00edder'};
+  chip.textContent=(labels[role]||role)+' \u2022 trocar';
   chip.style.display='block';
+  // Hide form-only nav buttons for lider
+  var isLider=(role==='lider'||role==='leader');
+  ['closer','cs','vip'].forEach(function(r){
+    var nb=document.getElementById('nav-'+r);
+    if(nb) nb.style.display=isLider?'none':'';
+  });
   buildAll();
-  // Open profile's tab by default
-  if(role==='leader'){
+  if(isLider){
     showTab('dashboard',document.getElementById('nav-dashboard'));
   } else {
     showTab(role,document.getElementById('nav-'+role));
@@ -1539,10 +1544,11 @@ function sentNotice(roleId){
 function showTab(id,btn){
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('visible');});
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
-  document.getElementById('tab-'+id).classList.add('visible');
-  if(btn)btn.classList.add('active');
+  var tabEl=document.getElementById('tab-'+id);
+  if(!tabEl) return;
+  tabEl.classList.add('visible');
+  if(btn) btn.classList.add('active');
   if(id==='dashboard') buildDash();
-  // restore draft from localStorage without rebuilding the form
   if(id==='closer'&&document.getElementById('closer-meetings-list')) restoreDraftCloser();
   if(id==='cs'&&document.getElementById('cs-actions-list')) restoreDraftCS();
   if(id==='vip'&&document.getElementById('vip_vistorias')) restoreDraftVIP();
