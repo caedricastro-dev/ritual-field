@@ -835,27 +835,21 @@ function loadWeeksFromSheet(){
   if(dp) dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando...</div>';
   var week=document.getElementById('dash-week')?document.getElementById('dash-week').value:WEEK;
 
-  // Load weeks list AND role data in parallel
-  Promise.all([
-    jsonpPromise(SCRIPT_URL+'?action=weeks'),
-    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=closer'),
-    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=cs'),
-    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=vip')
-  ]).then(function(res){
-    // Update selector with sheet weeks
-    var sheetWeeks=(res[0]&&res[0].weeks)||[];
-    var all={};
-    all[WEEK]=true;
+  // UMA chamada so retorna tudo: semanas + closer + cs + vip
+  jsonpPromise(SCRIPT_URL+'?action=dashboard&week='+week)
+  .then(function(res){
+    if(!res||res.status==='error'){throw new Error('failed');}
+    var sheetWeeks=res.weeks||[];
+    var all={};all[WEEK]=true;
     lsWeeks().forEach(function(w){all[w]=true;});
     sheetWeeks.forEach(function(w){all[w]=true;});
-    var merged=Object.keys(all).sort().reverse();
-    updateWeekSelector(merged);
-    // Render content with already-loaded data
-    var cl  = res[1]&&res[1].data ? res[1].data : lsLoad('closer',week);
-    var cs  = res[2]&&res[2].data ? res[2].data : lsLoad('cs',week);
-    var vip = res[3]&&res[3].data ? res[3].data : lsLoad('vip',week);
+    updateWeekSelector(Object.keys(all).sort().reverse());
+    var cl  = res.closer  || lsLoad('closer',week);
+    var cs  = res.cs      || lsLoad('cs',week);
+    var vip = res.vip     || lsLoad('vip',week);
     renderPresentContent(week,cl,cs,vip);
-  }).catch(function(){
+  })
+  .catch(function(){
     var weeks=lsWeeks();
     updateWeekSelector(weeks.length?weeks:[WEEK]);
     renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week));
@@ -875,7 +869,7 @@ function updateWeekSelector(weeks){
 
 function togglePresent(){}
 function handleWeekChange(week){
-  renderPresentMode(week);
+  loadWeeksFromSheet();
 }
 
 // Fetch helper - uses fetch API with Apps Script
@@ -1324,23 +1318,7 @@ function updateTarMeta(val){
 
 
 function renderPresentMode(week){
-  var dp=document.getElementById('dash-present');
-  if(!dp) return;
-  dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando...</div>';
-
-  // All 3 roles in parallel — no delays
-  Promise.all([
-    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=closer'),
-    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=cs'),
-    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=vip')
-  ]).then(function(res){
-    var cl  = res[0]&&res[0].data ? res[0].data : lsLoad('closer',week);
-    var cs  = res[1]&&res[1].data ? res[1].data : lsLoad('cs',week);
-    var vip = res[2]&&res[2].data ? res[2].data : lsLoad('vip',week);
-    renderPresentContent(week,cl,cs,vip);
-  }).catch(function(){
-    renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week));
-  });
+  loadWeeksFromSheet();
 }
 
 function renderPresentContent(week, cl, cs, vip){
