@@ -832,24 +832,34 @@ function buildDash(){
 
 function loadWeeksFromSheet(){
   var dp=document.getElementById('dash-present');
-  if(dp) dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando semanas...</div>';
-  jsonpPromise(SCRIPT_URL+'?action=weeks')
-    .then(function(res){
-      var sheetWeeks=(res&&res.weeks)||[];
-      var all={};
-      all[WEEK]=true;
-      lsWeeks().forEach(function(w){all[w]=true;});
-      sheetWeeks.forEach(function(w){all[w]=true;});
-      var merged=Object.keys(all).sort().reverse();
-      updateWeekSelector(merged);
-      var week=document.getElementById('dash-week')?document.getElementById('dash-week').value:WEEK;
-      renderPresentMode(week);
-    })
-    .catch(function(){
-      var weeks=lsWeeks();
-      updateWeekSelector(weeks.length?weeks:[WEEK]);
-      renderPresentMode(WEEK);
-    });
+  if(dp) dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando...</div>';
+  var week=document.getElementById('dash-week')?document.getElementById('dash-week').value:WEEK;
+
+  // Load weeks list AND role data in parallel
+  Promise.all([
+    jsonpPromise(SCRIPT_URL+'?action=weeks'),
+    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=closer'),
+    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=cs'),
+    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=vip')
+  ]).then(function(res){
+    // Update selector with sheet weeks
+    var sheetWeeks=(res[0]&&res[0].weeks)||[];
+    var all={};
+    all[WEEK]=true;
+    lsWeeks().forEach(function(w){all[w]=true;});
+    sheetWeeks.forEach(function(w){all[w]=true;});
+    var merged=Object.keys(all).sort().reverse();
+    updateWeekSelector(merged);
+    // Render content with already-loaded data
+    var cl  = res[1]&&res[1].data ? res[1].data : lsLoad('closer',week);
+    var cs  = res[2]&&res[2].data ? res[2].data : lsLoad('cs',week);
+    var vip = res[3]&&res[3].data ? res[3].data : lsLoad('vip',week);
+    renderPresentContent(week,cl,cs,vip);
+  }).catch(function(){
+    var weeks=lsWeeks();
+    updateWeekSelector(weeks.length?weeks:[WEEK]);
+    renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week));
+  });
 }
 
 function updateWeekSelector(weeks){
@@ -877,7 +887,7 @@ function jsonpPromise(url) {
       if (!done) { done = true; resolve(null); }
       try { var s=document.getElementById(cbName); if(s) s.remove(); } catch(e) {}
       try { delete window[cbName]; } catch(e) {}
-    }, 15000);
+    }, 8000);
     window[cbName] = function(data) {
       if (!done) {
         done = true;
@@ -1316,19 +1326,21 @@ function updateTarMeta(val){
 function renderPresentMode(week){
   var dp=document.getElementById('dash-present');
   if(!dp) return;
-  dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando dados da planilha...</div>';
+  dp.innerHTML='<div style="padding:2rem 2.5rem;color:rgba(0,0,0,.4);font-size:13px">↻ Carregando...</div>';
 
-  // Load sequentially with delay to avoid JSONP conflicts
-  var clData=null, csData=null, vipData=null;
-  function delay(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
-
-  jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=closer')
-  .then(function(r){ clData=r&&r.data?r.data:lsLoad('closer',week); return delay(300); })
-  .then(function(){ return jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=cs'); })
-  .then(function(r){ csData=r&&r.data?r.data:lsLoad('cs',week); return delay(300); })
-  .then(function(){ return jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=vip'); })
-  .then(function(r){ vipData=r&&r.data?r.data:lsLoad('vip',week); renderPresentContent(week,clData,csData,vipData); })
-  .catch(function(){ renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week)); });
+  // All 3 roles in parallel — no delays
+  Promise.all([
+    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=closer'),
+    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=cs'),
+    jsonpPromise(SCRIPT_URL+'?action=weekly&week='+week+'&role=vip')
+  ]).then(function(res){
+    var cl  = res[0]&&res[0].data ? res[0].data : lsLoad('closer',week);
+    var cs  = res[1]&&res[1].data ? res[1].data : lsLoad('cs',week);
+    var vip = res[2]&&res[2].data ? res[2].data : lsLoad('vip',week);
+    renderPresentContent(week,cl,cs,vip);
+  }).catch(function(){
+    renderPresentContent(week,lsLoad('closer',week),lsLoad('cs',week),lsLoad('vip',week));
+  });
 }
 
 function renderPresentContent(week, cl, cs, vip){
